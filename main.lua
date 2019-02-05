@@ -1,16 +1,61 @@
 local Bayes = require 'Bayes'
 
-io.input './small/test1_1.csv'
+local start = os.clock()
 
-local line = {}
-local function parse(str)
-	for field in str:gmatch '[^%s,]+' do
-		line[#line + 1] = field
+local iterator = io.lines(arg[1])
+local _instance = {}
+local function parse()
+	local line = iterator()
+	if not line then
+		return nil
 	end
-	return line
+
+	local i = 1
+	for field in line:gmatch '[^%s,]+' do
+		_instance[i] = field == '1'
+		i = i + 1
+	end
+	return _instance
 end
 
 local bayes = Bayes(parse)
-local test = {1, 1, 1, 1, 1, 1, 1, 1, 1}
-print(bayes:prob(test, '1'))
-print(bayes:prob(test, '-1'))
+
+local doneTraining = os.clock()
+
+iterator = io.lines(arg[1])
+parse()
+
+local truePositive = 0
+local falsePositive = 0
+local trueNegative = 0
+local falseNegative = 0
+
+local class = #bayes
+for instance in parse do
+	local c = instance[class]
+	instance[class] = nil
+	local result = bayes:classify(instance)
+	if c then
+		if result then
+			truePositive = truePositive + 1
+		else
+			falseNegative = falseNegative + 1
+		end
+	elseif result then
+		falsePositive = falsePositive + 1
+	else
+		trueNegative = trueNegative + 1
+	end
+end
+
+local finish = os.clock()
+
+print("Training Time:", doneTraining - start)
+print("Testing Time:", finish - doneTraining)
+print(truePositive, '\t', falsePositive)
+print(falseNegative, '\t', trueNegative)
+print(
+	(truePositive + trueNegative)
+	/
+	(truePositive + falsePositive + trueNegative +falseNegative)
+)
